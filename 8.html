@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>視覺同步訓練 Rush | 上明眼鏡</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #002147 0%, #003366 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, #f99d1c 0%, #ff8800 100%);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(249, 157, 28, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(249, 157, 28, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .btn.success {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+        }
+        
+        .game-container {
+            display: flex;
+            justify-content: center;
+            margin: 2rem;
+        }
+        
+        canvas {
+            border: 4px solid #fff;
+            border-radius: 15px;
+            background: linear-gradient(180deg, #87CEEB 0%, #98FB98 60%, #228B22 100%);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .info-panel {
+            background: rgba(255, 255, 255, 0.95);
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 15px;
+            max-width: 800px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(116, 185, 255, 0.3);
+        }
+        
+        .stat-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        #logContainer {
+            background: rgba(255, 255, 255, 0.9);
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 15px;
+            max-width: 600px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        #logList {
+            list-style: none;
+            text-align: left;
+        }
+        
+        #logList li {
+            background: #f8f9fa;
+            margin: 0.5rem 0;
+            padding: 0.8rem;
+            border-radius: 8px;
+            border-left: 4px solid #f99d1c;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .training-status {
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .status-ready {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+        }
+        
+        .status-running {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-paused {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            color: white;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .controls { flex-direction: column; align-items: center; }
+            canvas { width: 95%; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>上明眼鏡 × 視覺同步訓練 Rush</h1>
+        <p>專業視覺訓練系統，提升雙眼協調能力</p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" onclick="startTraining()">🚀 開始訓練</button>
+        <button class="btn" onclick="pauseTraining()">⏸️ 暫停/繼續</button>
+        <button class="btn" onclick="resetTraining()">🔄 重置</button>
+        <button class="btn success" onclick="saveLog()">💾 儲存紀錄</button>
+        <button class="btn danger" onclick="clearLogs()">🗑️ 清除紀錄</button>
+    </div>
+
+    <div class="training-status" id="trainingStatus">準備開始訓練</div>
+
+    <div class="info-panel">
+        <div class="stats">
+            <div class="stat-card">
+                <h3>訓練時間</h3>
+                <div class="value" id="trainingTime">00:00</div>
+            </div>
+            <div class="stat-card">
+                <h3>完成循環</h3>
+                <div class="value" id="completedCycles">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>紅球速度</h3>
+                <div class="value" id="redSpeed">2</div>
+            </div>
+            <div class="stat-card">
+                <h3>綠球速度</h3>
+                <div class="value" id="greenSpeed">2</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <div id="logContainer">
+        <h3>📋 訓練記錄</h3>
+        <ul id="logList"></ul>
+    </div>
+
+    <script>
+        class VisualSyncTrainer {
+            constructor() {
+                this.canvas = document.getElementById("gameCanvas");
+                this.ctx = this.canvas.getContext("2d");
+                this.reset();
+                this.setupEventListeners();
+            }
+
+            reset() {
+                this.redX = 50;
+                this.greenX = 750;
+                this.redSpeed = 2;
+                this.greenSpeed = -2;
+                this.isRunning = false;
+                this.isPaused = false;
+                this.startTime = null;
+                this.pausedTime = 0;
+                this.completedCycles = 0;
+                this.animationId = null;
+                this.updateStatus("準備開始訓練", "status-ready");
+                this.updateStats();
+            }
+
+            setupEventListeners() {
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case ' ': // Spacebar
+                            e.preventDefault();
+                            this.pauseTraining();
+                            break;
+                        case 'r':
+                        case 'R':
+                            this.resetTraining();
+                            break;
+                        case 's':
+                        case 'S':
+                            this.saveLog();
+                            break;
+                    }
+                });
+
+                // Canvas click to start
+                this.canvas.addEventListener('click', () => {
+                    if (!this.isRunning && !this.isPaused) {
+                        this.startTraining();
+                    }
+                });
+            }
+
+            draw() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw background elements
+                this.drawBackground();
+                
+                // Draw objects with enhanced visuals
+                this.drawEnhancedObjects();
+                
+                // Update positions
+                this.updatePositions();
+                
+                // Update UI
+                this.updateStats();
+
+                if (this.isRunning && !this.isPaused) {
+                    this.animationId = requestAnimationFrame(() => this.draw());
+                }
+            }
+
+            drawBackground() {
+                // Sky gradient
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(0.6, '#98FB98');
+                gradient.addColorStop(1, '#228B22');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Clouds
+                this.drawClouds();
+                
+                // Ground details
+                this.drawGround();
+                
+                // Central focus area
+                this.drawFocusArea();
+            }
+
+            drawClouds() {
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                // Cloud 1
+                this.ctx.beginPath();
+                this.ctx.arc(150, 60, 25, 0, Math.PI * 2);
+                this.ctx.arc(175, 60, 35, 0, Math.PI * 2);
+                this.ctx.arc(200, 60, 25, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Cloud 2
+                this.ctx.beginPath();
+                this.ctx.arc(600, 80, 20, 0, Math.PI * 2);
+                this.ctx.arc(620, 80, 30, 0, Math.PI * 2);
+                this.ctx.arc(640, 80, 20, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+
+            drawGround() {
+                // Grass texture
+                this.ctx.fillStyle = '#228B22';
+                this.ctx.fillRect(0, 300, this.canvas.width, 100);
+                
+                // Grass blades
+                this.ctx.strokeStyle = '#32CD32';
+                this.ctx.lineWidth = 2;
+                for (let i = 0; i < this.canvas.width; i += 20) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(i, 400);
+                    this.ctx.lineTo(i + 3, 390);
+                    this.ctx.stroke();
+                }
+            }
+
+            drawFocusArea() {
+                // Central focus rectangle with gradient
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.fillRect(centerX - 50, centerY - 25, 100, 50);
+                
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(centerX - 50, centerY - 25, 100, 50);
+                
+                // Focus text
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.font = '16px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('注視中心', centerX, centerY + 5);
+            }
+
+            drawEnhancedObjects() {
+                // Red object (left eye) with glow effect
+                this.drawGlowingCircle(this.redX, 100, 25, '#ff0000', '#ff6666');
+                
+                // Green object (right eye) with glow effect
+                this.drawGlowingCircle(this.greenX, 300, 25, '#00ff00', '#66ff66');
+                
+                // Animal labels with better styling
+                this.drawLabel('🐒 台灣獼猴', this.redX, 70, '#ff0000');
+                this.drawLabel('🦌 水鹿', this.greenX, 270, '#00ff00');
+            }
+
+            drawGlowingCircle(x, y, radius, color, glowColor) {
+                // Glow effect
+                this.ctx.shadowColor = glowColor;
+                this.ctx.shadowBlur = 15;
+                
+                // Main circle
+                this.ctx.fillStyle = color;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Inner highlight
+                this.ctx.shadowBlur = 0;
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.beginPath();
+                this.ctx.arc(x - 5, y - 5, radius * 0.3, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+
+            drawLabel(text, x, y, color) {
+                this.ctx.font = 'bold 14px Arial';
+                this.ctx.textAlign = 'center';
+                
+                // Text shadow
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                this.ctx.fillText(text, x + 1, y + 1);
+                
+                // Main text
+                this.ctx.fillStyle = color;
+                this.ctx.fillText(text, x, y);
+            }
+
+            updatePositions() {
+                this.redX += this.redSpeed;
+                this.greenX += this.greenSpeed;
+
+                // Bounce and cycle counting
+                if (this.redX > this.canvas.width - 25) {
+                    this.redX = this.canvas.width - 25;
+                    this.redSpeed = -Math.abs(this.redSpeed);
+                    this.completedCycles++;
+                } else if (this.redX < 25) {
+                    this.redX = 25;
+                    this.redSpeed = Math.abs(this.redSpeed);
+                }
+
+                if (this.greenX > this.canvas.width - 25) {
+                    this.greenX = this.canvas.width - 25;
+                    this.greenSpeed = -Math.abs(this.greenSpeed);
+                } else if (this.greenX < 25) {
+                    this.greenX = 25;
+                    this.greenSpeed = Math.abs(this.greenSpeed);
+                }
+            }
+
+            updateStats() {
+                if (this.isRunning && !this.isPaused && this.startTime) {
+                    const elapsed = Math.floor((Date.now() - this.startTime - this.pausedTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    document.getElementById('trainingTime').textContent = 
+                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+                
+                document.getElementById('completedCycles').textContent = this.completedCycles;
+                document.getElementById('redSpeed').textContent = Math.abs(this.redSpeed);
+                document.getElementById('greenSpeed').textContent = Math.abs(this.greenSpeed);
+            }
+
+            updateStatus(message, className) {
+                const statusEl = document.getElementById('trainingStatus');
+                statusEl.textContent = message;
+                statusEl.className = `training-status ${className}`;
+            }
+
+            startTraining() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.isPaused = false;
+                    this.startTime = Date.now();
+                    this.updateStatus('訓練進行中...', 'status-running');
+                    this.draw();
+                }
+            }
+
+            pauseTraining() {
+                if (this.isRunning) {
+                    if (this.isPaused) {
+                        this.isPaused = false;
+                        this.pausedTime += Date.now() - this.pauseStartTime;
+                        this.updateStatus('訓練進行中...', 'status-running');
+                        this.draw();
+                    } else {
+                        this.isPaused = true;
+                        this.pauseStartTime = Date.now();
+                        this.updateStatus('訓練已暫停', 'status-paused');
+                        if (this.animationId) {
+                            cancelAnimationFrame(this.animationId);
+                        }
+                    }
+                }
+            }
+
+            resetTraining() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                this.reset();
+                this.draw();
+            }
+
+            saveLog() {
+                const time = new Date().toLocaleString('zh-TW');
+                const duration = document.getElementById('trainingTime').textContent;
+                const cycles = this.completedCycles;
+                
+                const logEntry = {
+                    time,
+                    duration,
+                    cycles,
+                    message: `訓練完成 - 時長: ${duration}, 循環: ${cycles}次`
+                };
+                
+                const li = document.createElement("li");
+                li.innerHTML = `
+                    <strong>${time}</strong><br>
+                    訓練時長: ${duration} | 完成循環: ${cycles}次
+                `;
+                
+                document.getElementById("logList").insertBefore(li, document.getElementById("logList").firstChild);
+                
+                // Show success message
+                this.updateStatus('記錄已儲存！', 'status-ready');
+                setTimeout(() => {
+                    if (this.isRunning) {
+                        this.updateStatus('訓練進行中...', 'status-running');
+                    } else {
+                        this.updateStatus('準備開始訓練', 'status-ready');
+                    }
+                }, 2000);
+            }
+
+            clearLogs() {
+                if (confirm('確定要清除所有訓練記錄嗎？')) {
+                    document.getElementById("logList").innerHTML = '';
+                    this.updateStatus('記錄已清除', 'status-ready');
+                    setTimeout(() => {
+                        if (this.isRunning) {
+                            this.updateStatus('訓練進行中...', 'status-running');
+                        } else {
+                            this.updateStatus('準備開始訓練', 'status-ready');
+                        }
+                    }, 2000);
+                }
+            }
+        }
+
+        // Initialize the trainer
+        let trainer;
+        
+        window.addEventListener('load', () => {
+            trainer = new VisualSyncTrainer();
+            trainer.draw(); // Initial draw
+        });
+
+        // Global functions for button clicks
+        function startTraining() { trainer.startTraining(); }
+        function pauseTraining() { trainer.pauseTraining(); }
+        function resetTraining() { trainer.resetTraining(); }
+        function saveLog() { trainer.saveLog(); }
+        function clearLogs() { trainer.clearLogs(); }
+    </script>
+</body>
+</html>
