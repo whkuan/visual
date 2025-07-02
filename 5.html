@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Cars</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            overflow: hidden; /* Prevent scrollbars if canvas is slightly larger */
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #88B04B; /* Road-like background */
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="raceTrack"></canvas>
+
+    <script>
+        const canvas = document.getElementById('raceTrack');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas dimensions (adjust as needed)
+        canvas.width = 800;
+        canvas.height = 600;
+
+        const numLanes = 5;
+        const laneHeight = canvas.height / numLanes;
+        const carWidth = 40;
+        const carHeight = 20;
+
+        // Function to generate a random number between min and max (inclusive)
+        function getRandomInt(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Car class definition
+        class Car {
+            constructor(x, y, color, speed) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.speed = speed;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, carWidth, carHeight);
+
+                // Draw simple wheels (optional, for more detail)
+                ctx.fillStyle = 'black';
+                ctx.fillRect(this.x + 5, this.y + carHeight - 5, 8, 5); // Front wheel
+                ctx.fillRect(this.x + carWidth - 13, this.y + carHeight - 5, 8, 5); // Back wheel
+            }
+
+            update() {
+                this.x += this.speed;
+
+                // Reset car position if it goes off screen
+                if (this.x > canvas.width) {
+                    this.x = -carWidth; // Start from left, slightly off-screen
+                }
+            }
+        }
+
+        // Create cars for each lane
+        const cars = [];
+        for (let i = 0; i < numLanes; i++) {
+            // Determine car color (alternating red and green or random)
+            const carColor = (i % 2 === 0) ? 'red' : 'green'; 
+            
+            // Initial x position (randomized to prevent all cars starting at the same spot)
+            const initialX = getRandomInt(-canvas.width, 0); 
+
+            // Y position centered in the lane
+            const carY = i * laneHeight + (laneHeight / 2) - (carHeight / 2);
+
+            // Randomize speed for variation
+            const carSpeed = getRandomInt(2, 5); 
+
+            cars.push(new Car(initialX, carY, carColor, carSpeed));
+        }
+
+        // Animation loop
+        function animate() {
+            // Clear the canvas for each frame
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw lanes
+            ctx.strokeStyle = 'white'; // Lane line color
+            ctx.lineWidth = 2; // Lane line thickness
+
+            for (let i = 1; i < numLanes; i++) {
+                // Draw dashed lines for lanes
+                ctx.setLineDash([10, 10]); // Dash length, space length
+                ctx.beginPath();
+                ctx.moveTo(0, i * laneHeight);
+                ctx.lineTo(canvas.width, i * laneHeight);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]); // Reset line dash for other drawings
+
+            // Update and draw each car
+            cars.forEach(car => {
+                car.update();
+                car.draw();
+            });
+
+            // Request the next frame
+            requestAnimationFrame(animate);
+        }
+
+        // Start the animation
+        animate();
+    </script>
+</body>
+</html>
