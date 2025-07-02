@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>視覺同步訓練 Rush</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      background-color: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    canvas {
+      border: 3px solid white;
+      background-color: #ccc; /* 灰色背景：雙眼可見 */
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let redX = 0;
+    let greenX = 800;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 灰色背景元素（雙眼看到）
+      ctx.fillStyle = "#999";
+      ctx.fillRect(350, 150, 100, 100);
+
+      // 紅色物件（建議搭配紅綠濾片左眼可見）
+      ctx.fillStyle = "rgb(255,0,0)";
+      ctx.beginPath();
+      ctx.arc(redX, 100, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 綠色物件（右眼看到）
+      ctx.fillStyle = "rgb(0,255,0)";
+      ctx.beginPath();
+      ctx.arc(greenX, 300, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 移動邏輯
+      redX += 2;
+      greenX -= 2;
+
+      if (redX > canvas.width) redX = 0;
+      if (greenX < 0) greenX = canvas.width;
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  </script>
+</body>
+</html>
